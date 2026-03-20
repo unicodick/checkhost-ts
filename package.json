@@ -36,6 +36,12 @@
     "typecheck": "bunx tsc --noEmit",
     "prepublishOnly": "bun run build"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest",
