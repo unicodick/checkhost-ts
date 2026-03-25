@@ -89,6 +89,8 @@ The library throws `CheckHostError` for:
 - non-2xx API responses (`statusCode` is HTTP status)
 - network failures (`statusCode` is `0`)
 - non-JSON responses when JSON is expected
+- invalid method input (empty `host`/`requestId`, invalid `maxNodes`, empty node names)
+- malformed API payloads that do not match documented response shapes
 
 ```ts
 import { CheckHostError } from "checkhost-ts";
