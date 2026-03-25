@@ -34,11 +34,14 @@ export async function apiFetch(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown network error";
-    throw new CheckHostError(`Network request failed: ${message}`, 0);
+    throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
   }
 
   if (!response.ok) {
-    throw new CheckHostError(`Request failed with status ${response.status}`, response.status);
+    throw new CheckHostError(
+      `Request failed for ${url.toString()} with status ${response.status}`,
+      response.status,
+    );
   }
 
   try {

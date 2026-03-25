@@ -1,16 +1,11 @@
 import { apiFetch } from "./client";
 import type { NodeEntry } from "./types";
-
-interface NodesResponse {
-  nodes: Record<string, NodeEntry>;
-}
+import { assertNodesResponse } from "./validators";
 
 export async function getNodeIPs(): Promise<Record<string, NodeEntry>> {
-  const response = (await apiFetch("/nodes/ips")) as NodesResponse;
-  return response.nodes;
+  return assertNodesResponse(await apiFetch("/nodes/ips"));
 }
 
 export async function getNodeHosts(): Promise<Record<string, NodeEntry>> {
-  const response = (await apiFetch("/nodes/hosts")) as NodesResponse;
-  return response.nodes;
+  return assertNodesResponse(await apiFetch("/nodes/hosts"));
 }

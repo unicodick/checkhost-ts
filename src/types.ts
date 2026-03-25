@@ -67,5 +67,6 @@ export class CheckHostError extends Error {
     super(message);
     this.name = "CheckHostError";
     this.statusCode = statusCode;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
