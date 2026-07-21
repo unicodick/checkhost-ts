@@ -22,7 +22,7 @@ export type HttpCheckRow = [
   time: number,
   statusText: string,
   statusCode: string | null,
-  address: string | null,
+  address?: string | null,
 ];
 
 export type HttpResult = Record<string, Array<HttpCheckRow> | null>;
@@ -45,12 +45,25 @@ export interface DnsCheckRow {
 
 export type DnsResult = Record<string, Array<DnsCheckRow> | null>;
 
-export type CheckResult = PingResult | HttpResult | TcpResult | DnsResult;
+export type UdpCheckRow =
+  | {
+      address: string;
+      timeout: number;
+    }
+  | {
+      address?: string;
+      error: string;
+    };
+
+export type UdpResult = Record<string, Array<UdpCheckRow> | null>;
+
+export type CheckResult = PingResult | HttpResult | TcpResult | DnsResult | UdpResult;
 
 export interface ExtendedResult<T> {
   command: string;
   created: number;
   host: string;
+  port?: string;
   results: T;
 }
 

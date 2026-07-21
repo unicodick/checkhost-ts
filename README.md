@@ -77,6 +77,7 @@ Exported core types:
 - `HttpResult`
 - `TcpResult`
 - `DnsResult`
+- `UdpResult`
 - `ExtendedResult<T>`
 - `NodeEntry`
 - `NodeInfo`

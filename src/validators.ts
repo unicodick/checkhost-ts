@@ -1,5 +1,15 @@
 import { CheckHostError } from "./types";
-import type { CheckResponse, CheckResult, ExtendedResult, NodeEntry } from "./types";
+import type {
+  CheckResponse,
+  CheckResult,
+  DnsCheckRow,
+  ExtendedResult,
+  HttpCheckRow,
+  NodeEntry,
+  PingReply,
+  TcpCheckRow,
+  UdpCheckRow,
+} from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,6 +35,95 @@ function isNodeEntry(value: unknown): value is NodeEntry {
     Array.isArray(location) &&
     location.length === 3 &&
     location.every((item) => typeof item === "string")
+  );
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isPingReply(value: unknown): value is PingReply {
+  return (
+    Array.isArray(value) &&
+    (value.length === 2 || value.length === 3) &&
+    typeof value[0] === "string" &&
+    isFiniteNumber(value[1]) &&
+    (value.length === 2 || typeof value[2] === "string")
+  );
+}
+
+function isHttpCheckRow(value: unknown): value is HttpCheckRow {
+  return (
+    Array.isArray(value) &&
+    (value.length === 4 || value.length === 5) &&
+    isFiniteNumber(value[0]) &&
+    isFiniteNumber(value[1]) &&
+    typeof value[2] === "string" &&
+    (typeof value[3] === "string" || value[3] === null) &&
+    (value.length === 4 || typeof value[4] === "string" || value[4] === null)
+  );
+}
+
+function isTcpCheckRow(value: unknown): value is TcpCheckRow {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    (isFiniteNumber(value.time) && typeof value.address === "string") ||
+    typeof value.error === "string"
+  );
+}
+
+function isDnsCheckRow(value: unknown): value is DnsCheckRow {
+  if (
+    !isRecord(value) ||
+    !("TTL" in value) ||
+    (!isFiniteNumber(value.TTL) && value.TTL !== null)
+  ) {
+    return false;
+  }
+
+  return Object.values(value).every(
+    (item) =>
+      item === null ||
+      isFiniteNumber(item) ||
+      (Array.isArray(item) && item.every((entry) => typeof entry === "string")),
+  );
+}
+
+function isUdpCheckRow(value: unknown): value is UdpCheckRow {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (typeof value.error === "string") {
+    return value.address === undefined || typeof value.address === "string";
+  }
+
+  return typeof value.address === "string" && isFiniteNumber(value.timeout);
+}
+
+function isPingNodeResult(value: unknown[]): boolean {
+  return value.every(
+    (batch) =>
+      batch === null ||
+      (Array.isArray(batch) && batch.every((reply) => reply === null || isPingReply(reply))),
+  );
+}
+
+function isCheckNodeResult(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return (
+    value.length === 0 ||
+    isPingNodeResult(value) ||
+    value.every(isHttpCheckRow) ||
+    value.every(isTcpCheckRow) ||
+    value.every(isDnsCheckRow) ||
+    value.every(isUdpCheckRow)
   );
 }
 
@@ -78,8 +177,8 @@ export function assertCheckResult(data: unknown): CheckResult {
   }
 
   for (const nodeResult of Object.values(data)) {
-    if (nodeResult !== null && !Array.isArray(nodeResult)) {
-      throw new CheckHostError("Invalid check result: node result must be an array or null", 0);
+    if (nodeResult !== null && !isCheckNodeResult(nodeResult)) {
+      throw new CheckHostError("Invalid check result: node result shape is invalid", 0);
     }
   }
 
@@ -91,8 +190,13 @@ export function assertExtendedResult(data: unknown): ExtendedResult<CheckResult>
     throw new CheckHostError("Invalid extended result: expected an object", 0);
   }
 
-  const { command, created, host, results } = data;
-  if (typeof command !== "string" || typeof created !== "number" || typeof host !== "string") {
+  const { command, created, host, port, results } = data;
+  if (
+    typeof command !== "string" ||
+    !isFiniteNumber(created) ||
+    typeof host !== "string" ||
+    (port !== undefined && typeof port !== "string")
+  ) {
     throw new CheckHostError("Invalid extended result: missing required fields", 0);
   }
 
@@ -100,6 +204,7 @@ export function assertExtendedResult(data: unknown): ExtendedResult<CheckResult>
     command,
     created,
     host,
+    ...(port === undefined ? {} : { port }),
     results: assertCheckResult(results),
   };
 }
