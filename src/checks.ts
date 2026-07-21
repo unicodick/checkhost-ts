@@ -1,9 +1,10 @@
 import { apiFetch } from "./client.js";
+import type { RequestOptions } from "./client.js";
 import type { CheckResponse } from "./types.js";
 import { CheckHostError } from "./types.js";
 import { assertCheckResponse, assertHost } from "./validators.js";
 
-export type CheckOptions = {
+export type CheckOptions = RequestOptions & {
   maxNodes?: number;
   nodes?: string[];
 };
@@ -33,21 +34,31 @@ function buildCheckParams(
 }
 
 export async function checkPing(host: string, options?: CheckOptions): Promise<CheckResponse> {
-  return assertCheckResponse(await apiFetch("/check-ping", buildCheckParams(host, options)));
+  return assertCheckResponse(
+    await apiFetch("/check-ping", buildCheckParams(host, options), options),
+  );
 }
 
 export async function checkHttp(host: string, options?: CheckOptions): Promise<CheckResponse> {
-  return assertCheckResponse(await apiFetch("/check-http", buildCheckParams(host, options)));
+  return assertCheckResponse(
+    await apiFetch("/check-http", buildCheckParams(host, options), options),
+  );
 }
 
 export async function checkTcp(host: string, options?: CheckOptions): Promise<CheckResponse> {
-  return assertCheckResponse(await apiFetch("/check-tcp", buildCheckParams(host, options)));
+  return assertCheckResponse(
+    await apiFetch("/check-tcp", buildCheckParams(host, options), options),
+  );
 }
 
 export async function checkDns(host: string, options?: CheckOptions): Promise<CheckResponse> {
-  return assertCheckResponse(await apiFetch("/check-dns", buildCheckParams(host, options)));
+  return assertCheckResponse(
+    await apiFetch("/check-dns", buildCheckParams(host, options), options),
+  );
 }
 
 export async function checkUdp(host: string, options?: CheckOptions): Promise<CheckResponse> {
-  return assertCheckResponse(await apiFetch("/check-udp", buildCheckParams(host, options)));
+  return assertCheckResponse(
+    await apiFetch("/check-udp", buildCheckParams(host, options), options),
+  );
 }

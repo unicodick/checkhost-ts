@@ -25,7 +25,11 @@ console.log(result);
 Low-level helper for direct API calls.
 
 ```ts
-apiFetch(path: string, params?: Record<string, string | string[]>): Promise<unknown>
+apiFetch(
+  path: string,
+  params?: Record<string, string | string[]>,
+  options?: RequestOptions,
+): Promise<unknown>
 ```
 
 ### Check methods
@@ -44,17 +48,21 @@ checkUdp(host: string, options?: CheckOptions): Promise<CheckResponse>
 type CheckOptions = {
   maxNodes?: number;
   nodes?: string[];
+  signal?: AbortSignal;
+  timeoutMs?: number;
 };
 ```
 
 - `maxNodes`: limits number of checker nodes (`max_nodes` in API).
 - `nodes`: explicit node list (sent as repeated `node` query params).
+- `signal`: abort signal for request cancellation.
+- `timeoutMs`: positive integer request timeout in milliseconds.
 
 ### Result methods
 
 ```ts
-getResult(requestId: string): Promise<CheckResult>
-getResultExtended(requestId: string): Promise<ExtendedResult<CheckResult>>
+getResult(requestId: string, options?: RequestOptions): Promise<CheckResult>
+getResultExtended(requestId: string, options?: RequestOptions): Promise<ExtendedResult<CheckResult>>
 ```
 
 `requestId` is URL-encoded by the library before request execution.
@@ -62,8 +70,8 @@ getResultExtended(requestId: string): Promise<ExtendedResult<CheckResult>>
 ### Node methods
 
 ```ts
-getNodeIPs(): Promise<string[]>
-getNodeHosts(): Promise<Record<string, NodeEntry>>
+getNodeIPs(options?: RequestOptions): Promise<string[]>
+getNodeHosts(options?: RequestOptions): Promise<Record<string, NodeEntry>>
 ```
 
 ## Types
@@ -72,6 +80,7 @@ Exported core types:
 
 - `CheckResponse`
 - `CheckOptions`
+- `RequestOptions`
 - `CheckResult`
 - `PingResult`
 - `HttpResult`

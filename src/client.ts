@@ -2,9 +2,54 @@ import { CheckHostError } from "./types.js";
 
 export const BASE_URL = "https://check-host.net";
 
+export type RequestOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+};
+
+function createRequestSignal(options?: RequestOptions): {
+  signal: AbortSignal | undefined;
+  cleanup: () => void;
+} {
+  if (options?.timeoutMs === undefined) {
+    return { signal: options?.signal, cleanup: () => {} };
+  }
+
+  if (
+    !Number.isInteger(options.timeoutMs) ||
+    options.timeoutMs <= 0 ||
+    options.timeoutMs > 2_147_483_647
+  ) {
+    throw new CheckHostError("timeoutMs must be an integer between 1 and 2147483647", 0);
+  }
+
+  const controller = new AbortController();
+  const abortFromParent = () => controller.abort(options.signal?.reason);
+
+  if (options.signal?.aborted) {
+    abortFromParent();
+  } else {
+    options.signal?.addEventListener("abort", abortFromParent, { once: true });
+  }
+
+  const timeout = setTimeout(
+    () => controller.abort(new Error(`Request timed out after ${options.timeoutMs}ms`)),
+    options.timeoutMs,
+  );
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      options.signal?.removeEventListener("abort", abortFromParent);
+    },
+  };
+}
+
 export async function apiFetch(
   path: string,
   params?: Record<string, string | string[]>,
+  options?: RequestOptions,
 ): Promise<unknown> {
   const url = new URL(path, BASE_URL);
 
@@ -24,33 +69,45 @@ export async function apiFetch(
     url.search = search.toString();
   }
 
-  let response: Response;
+  const { signal, cleanup } = createRequestSignal(options);
 
   try {
-    response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown network error";
-    throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
-  }
+    let response: Response;
 
-  if (!response.ok) {
-    throw new CheckHostError(
-      `Request failed for ${url.toString()} with status ${response.status}`,
-      response.status,
-    );
-  }
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+        signal,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown network error";
+      throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
+    }
 
-  try {
-    return (await response.json()) as unknown;
-  } catch {
-    const contentType = response.headers.get("content-type") ?? "unknown";
-    throw new CheckHostError(
-      `Expected JSON response but received content-type ${contentType}`,
-      response.status,
-    );
+    if (!response.ok) {
+      throw new CheckHostError(
+        `Request failed for ${url.toString()} with status ${response.status}`,
+        response.status,
+      );
+    }
+
+    try {
+      return (await response.json()) as unknown;
+    } catch (error) {
+      if (signal?.aborted) {
+        const message = error instanceof Error ? error.message : "Request aborted";
+        throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
+      }
+
+      const contentType = response.headers.get("content-type") ?? "unknown";
+      throw new CheckHostError(
+        `Expected JSON response but received content-type ${contentType}`,
+        response.status,
+      );
+    }
+  } finally {
+    cleanup();
   }
 }
