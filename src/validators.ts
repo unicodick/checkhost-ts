@@ -104,14 +104,26 @@ export function assertExtendedResult(data: unknown): ExtendedResult<CheckResult>
   };
 }
 
-export function assertNodesResponse(data: unknown): Record<string, NodeEntry> {
+export function assertNodeIPsResponse(data: unknown): string[] {
+  if (
+    !isRecord(data) ||
+    !Array.isArray(data.nodes) ||
+    !data.nodes.every((node) => typeof node === "string")
+  ) {
+    throw new CheckHostError("Invalid node IPs response: expected { nodes: string[] }", 0);
+  }
+
+  return data.nodes;
+}
+
+export function assertNodeHostsResponse(data: unknown): Record<string, NodeEntry> {
   if (!isRecord(data) || !isRecord(data.nodes)) {
-    throw new CheckHostError("Invalid nodes response: expected { nodes: {...} }", 0);
+    throw new CheckHostError("Invalid node hosts response: expected { nodes: {...} }", 0);
   }
 
   for (const nodeEntry of Object.values(data.nodes)) {
     if (!isNodeEntry(nodeEntry)) {
-      throw new CheckHostError("Invalid nodes response: node entry shape is invalid", 0);
+      throw new CheckHostError("Invalid node hosts response: node entry shape is invalid", 0);
     }
   }
 

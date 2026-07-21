@@ -62,7 +62,7 @@ getResultExtended(requestId: string): Promise<ExtendedResult<CheckResult>>
 ### Node methods
 
 ```ts
-getNodeIPs(): Promise<Record<string, NodeEntry>>
+getNodeIPs(): Promise<string[]>
 getNodeHosts(): Promise<Record<string, NodeEntry>>
 ```
 
