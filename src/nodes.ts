@@ -1,6 +1,6 @@
-import { apiFetch } from "./client";
-import type { NodeEntry } from "./types";
-import { assertNodeHostsResponse, assertNodeIPsResponse } from "./validators";
+import { apiFetch } from "./client.js";
+import type { NodeEntry } from "./types.js";
+import { assertNodeHostsResponse, assertNodeIPsResponse } from "./validators.js";
 
 export async function getNodeIPs(): Promise<string[]> {
   return assertNodeIPsResponse(await apiFetch("/nodes/ips"));

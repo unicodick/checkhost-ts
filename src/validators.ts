@@ -1,4 +1,4 @@
-import { CheckHostError } from "./types";
+import { CheckHostError } from "./types.js";
 import type {
   CheckResponse,
   CheckResult,
@@ -9,7 +9,7 @@ import type {
   PingReply,
   TcpCheckRow,
   UdpCheckRow,
-} from "./types";
+} from "./types.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

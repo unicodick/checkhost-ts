@@ -1,7 +1,7 @@
-import { apiFetch } from "./client";
-import type { CheckResponse } from "./types";
-import { CheckHostError } from "./types";
-import { assertCheckResponse, assertHost } from "./validators";
+import { apiFetch } from "./client.js";
+import type { CheckResponse } from "./types.js";
+import { CheckHostError } from "./types.js";
+import { assertCheckResponse, assertHost } from "./validators.js";
 
 export type CheckOptions = {
   maxNodes?: number;

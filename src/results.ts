@@ -1,6 +1,6 @@
-import { apiFetch } from "./client";
-import type { CheckResult, ExtendedResult } from "./types";
-import { assertCheckResult, assertExtendedResult, assertRequestId } from "./validators";
+import { apiFetch } from "./client.js";
+import type { CheckResult, ExtendedResult } from "./types.js";
+import { assertCheckResult, assertExtendedResult, assertRequestId } from "./validators.js";
 
 export async function getResult(requestId: string): Promise<CheckResult> {
   const encodedRequestId = encodeURIComponent(assertRequestId(requestId));

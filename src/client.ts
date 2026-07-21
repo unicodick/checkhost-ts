@@ -1,4 +1,4 @@
-import { CheckHostError } from "./types";
+import { CheckHostError } from "./types.js";
 
 export const BASE_URL = "https://check-host.net";
 
