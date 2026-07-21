@@ -34,8 +34,9 @@
     "build:types": "bunx tsc -p tsconfig.build.json",
     "build": "bun run build:js && bun run build:types",
     "test": "bun test",
-    "test:types": "bun run build && bunx tsc -p test/types/tsconfig.json",
+    "test:types": "bunx tsc -p test/types/tsconfig.json",
     "typecheck": "bunx tsc --noEmit",
+    "ci": "bun run typecheck && bun run test && bun run build && bun run test:types",
     "prepublishOnly": "bun run build"
   },
   "files": [
