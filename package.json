@@ -37,6 +37,10 @@
     "test:types": "bunx tsc -p test/types/tsconfig.json",
     "typecheck": "bunx tsc --noEmit",
     "ci": "bun run typecheck && bun run test && bun run build && bun run test:types",
+    "preversion": "bun run ci",
+    "release:patch": "npm version patch -m \"chore(release): bump to %s\"",
+    "release:minor": "npm version minor -m \"chore(release): bump to %s\"",
+    "release:major": "npm version major -m \"chore(release): bump to %s\"",
     "prepublishOnly": "bun run build"
   },
   "files": [
