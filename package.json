@@ -1,6 +1,6 @@
 {
   "name": "checkhost-ts",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lightweight TypeScript wrapper for the check-host.net API",
   "license": "MIT",
   "main": "./dist/index.js",
