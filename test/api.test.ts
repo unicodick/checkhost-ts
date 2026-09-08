@@ -248,6 +248,19 @@ describe("results", () => {
     );
   });
 
+  test("rejects an unsupported result type before making a request", async () => {
+    let requestCount = 0;
+    globalThis.fetch = async () => {
+      requestCount += 1;
+      return Response.json({});
+    };
+
+    await expect(getResult("request-id", { type: "trace" } as never)).rejects.toThrow(
+      "type must be a supported check type",
+    );
+    expect(requestCount).toBe(0);
+  });
+
   test("preserves the extended result port", async () => {
     mockJson({
       command: "udp",
