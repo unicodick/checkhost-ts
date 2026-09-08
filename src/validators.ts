@@ -2,8 +2,10 @@ import { CheckHostError } from "./types.js";
 import type {
   CheckResponse,
   CheckResult,
+  CheckResultFor,
+  CheckType,
   DnsCheckRow,
-  ExtendedResult,
+  ExtendedCheckResult,
   HttpCheckRow,
   NodeEntry,
   PingReply,
@@ -17,6 +19,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function invalidInput(message: string): CheckHostError {
   return new CheckHostError(message, 0, { kind: "validation" });
+}
+
+function invalidResponse(message: string): CheckHostError {
+  return new CheckHostError(message, 0, { kind: "response" });
 }
 
 function isNodeInfo(value: unknown): value is [string, string, string, string, string] {
@@ -116,19 +122,46 @@ function isPingNodeResult(value: unknown[]): boolean {
   );
 }
 
-function isCheckNodeResult(value: unknown): boolean {
+const resultShapes: CheckType[] = ["ping", "http", "tcp", "dns", "udp"];
+
+function isCheckType(value: unknown): value is CheckType {
+  return typeof value === "string" && resultShapes.includes(value as CheckType);
+}
+
+export function assertCheckType(value: unknown): CheckType {
+  if (!isCheckType(value)) {
+    throw invalidInput("type must be a supported check type");
+  }
+  return value;
+}
+
+function getCompatibleResultShapes(value: unknown): CheckType[] {
   if (!Array.isArray(value)) {
-    return false;
+    return [];
   }
 
-  return (
-    value.length === 0 ||
-    isPingNodeResult(value) ||
-    value.every(isHttpCheckRow) ||
-    value.every(isTcpCheckRow) ||
-    value.every(isDnsCheckRow) ||
-    value.every(isUdpCheckRow)
-  );
+  if (value.length === 0) {
+    return resultShapes;
+  }
+
+  return resultShapes.filter((shape) => {
+    switch (shape) {
+      case "ping":
+        return isPingNodeResult(value);
+      case "http":
+        return value.every(isHttpCheckRow);
+      case "tcp":
+        return value.every(isTcpCheckRow);
+      case "dns":
+        return value.every(isDnsCheckRow);
+      case "udp":
+        return value.every(isUdpCheckRow);
+    }
+  });
+}
+
+function isCheckNodeResult(value: unknown): boolean {
+  return getCompatibleResultShapes(value).length > 0;
 }
 
 export function assertHost(host: unknown): string {
@@ -157,21 +190,21 @@ export function assertRequestId(requestId: unknown): string {
 
 export function assertCheckResponse(data: unknown): CheckResponse {
   if (!isRecord(data)) {
-    throw new CheckHostError("Invalid check response: expected an object", 0);
+    throw invalidResponse("Invalid check response: expected an object");
   }
 
   const { ok, request_id, permanent_link, nodes } = data;
   if (typeof ok !== "number" || typeof request_id !== "string" || typeof permanent_link !== "string") {
-    throw new CheckHostError("Invalid check response: missing required fields", 0);
+    throw invalidResponse("Invalid check response: missing required fields");
   }
 
   if (!isRecord(nodes)) {
-    throw new CheckHostError("Invalid check response: nodes must be an object", 0);
+    throw invalidResponse("Invalid check response: nodes must be an object");
   }
 
   for (const nodeInfo of Object.values(nodes)) {
     if (!isNodeInfo(nodeInfo)) {
-      throw new CheckHostError("Invalid check response: node metadata shape is invalid", 0);
+      throw invalidResponse("Invalid check response: node metadata shape is invalid");
     }
   }
 
@@ -183,33 +216,50 @@ export function assertCheckResponse(data: unknown): CheckResponse {
   };
 }
 
-export function assertCheckResult(data: unknown): CheckResult {
+export function assertCheckResult<T extends CheckType = CheckType>(
+  data: unknown,
+  expectedType?: T,
+): CheckResultFor<T> {
   if (!isRecord(data)) {
-    throw new CheckHostError("Invalid check result: expected an object", 0);
+    throw invalidResponse("Invalid check result: expected an object");
   }
+
+  if (expectedType !== undefined && !isCheckType(expectedType)) {
+    assertCheckType(expectedType);
+  }
+
+  let compatibleShapes: CheckType[] = expectedType === undefined ? resultShapes : [expectedType];
 
   for (const nodeResult of Object.values(data)) {
     if (nodeResult !== null && !isCheckNodeResult(nodeResult)) {
-      throw new CheckHostError("Invalid check result: node result shape is invalid", 0);
+      throw invalidResponse("Invalid check result: node result shape is invalid");
+    }
+
+    if (nodeResult !== null) {
+      const nodeShapes = new Set(getCompatibleResultShapes(nodeResult));
+      compatibleShapes = compatibleShapes.filter((shape) => nodeShapes.has(shape));
+      if (compatibleShapes.length === 0) {
+        throw invalidResponse("Invalid check result: node result shapes are inconsistent");
+      }
     }
   }
 
-  return data as CheckResult;
+  return data as CheckResultFor<T>;
 }
 
-export function assertExtendedResult(data: unknown): ExtendedResult<CheckResult> {
+export function assertExtendedResult(data: unknown): ExtendedCheckResult {
   if (!isRecord(data)) {
-    throw new CheckHostError("Invalid extended result: expected an object", 0);
+    throw invalidResponse("Invalid extended result: expected an object");
   }
 
   const { command, created, host, port, results } = data;
   if (
-    typeof command !== "string" ||
+    !isCheckType(command) ||
     !isFiniteNumber(created) ||
     typeof host !== "string" ||
     (port !== undefined && typeof port !== "string")
   ) {
-    throw new CheckHostError("Invalid extended result: missing required fields", 0);
+    throw invalidResponse("Invalid extended result: missing required fields");
   }
 
   return {
@@ -217,8 +267,8 @@ export function assertExtendedResult(data: unknown): ExtendedResult<CheckResult>
     created,
     host,
     ...(port === undefined ? {} : { port }),
-    results: assertCheckResult(results),
-  };
+    results: assertCheckResult(results, command),
+  } as ExtendedCheckResult;
 }
 
 export function assertNodeIPsResponse(data: unknown): string[] {
@@ -227,7 +277,7 @@ export function assertNodeIPsResponse(data: unknown): string[] {
     !Array.isArray(data.nodes) ||
     !data.nodes.every((node) => typeof node === "string")
   ) {
-    throw new CheckHostError("Invalid node IPs response: expected { nodes: string[] }", 0);
+    throw invalidResponse("Invalid node IPs response: expected { nodes: string[] }");
   }
 
   return data.nodes;
@@ -235,12 +285,12 @@ export function assertNodeIPsResponse(data: unknown): string[] {
 
 export function assertNodeHostsResponse(data: unknown): Record<string, NodeEntry> {
   if (!isRecord(data) || !isRecord(data.nodes)) {
-    throw new CheckHostError("Invalid node hosts response: expected { nodes: {...} }", 0);
+    throw invalidResponse("Invalid node hosts response: expected { nodes: {...} }");
   }
 
   for (const nodeEntry of Object.values(data.nodes)) {
     if (!isNodeEntry(nodeEntry)) {
-      throw new CheckHostError("Invalid node hosts response: node entry shape is invalid", 0);
+      throw invalidResponse("Invalid node hosts response: node entry shape is invalid");
     }
   }
 

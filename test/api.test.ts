@@ -225,8 +225,26 @@ describe("results", () => {
   test("rejects malformed result rows", async () => {
     mockJson({ node: [42] });
 
+    try {
+      await getResult("request-id");
+      throw new Error("Expected getResult to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CheckHostError);
+      expect((error as CheckHostError).message).toContain(
+        "Invalid check result: node result shape is invalid",
+      );
+      expect((error as CheckHostError).kind).toBe("response");
+    }
+  });
+
+  test("rejects mixed result shapes across nodes", async () => {
+    mockJson({
+      node1: [[1, 0.1, "OK", "200"]],
+      node2: [{ time: 0.1, address: "192.0.2.1" }],
+    });
+
     await expect(getResult("request-id")).rejects.toThrow(
-      "Invalid check result: node result shape is invalid",
+      "Invalid check result: node result shapes are inconsistent",
     );
   });
 

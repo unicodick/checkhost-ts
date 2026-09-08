@@ -57,15 +57,31 @@ export type UdpCheckRow =
 
 export type UdpResult = Record<string, Array<UdpCheckRow> | null>;
 
-export type CheckResult = PingResult | HttpResult | TcpResult | DnsResult | UdpResult;
+export interface CheckResultMap {
+  ping: PingResult;
+  http: HttpResult;
+  tcp: TcpResult;
+  dns: DnsResult;
+  udp: UdpResult;
+}
 
-export interface ExtendedResult<T> {
-  command: string;
+export type CheckType = keyof CheckResultMap;
+
+export type CheckResultFor<T extends CheckType> = CheckResultMap[T];
+
+export type CheckResult = CheckResultFor<CheckType>;
+
+export interface ExtendedResult<T = CheckResult, C extends string = string> {
+  command: C;
   created: number;
   host: string;
   port?: string;
   results: T;
 }
+
+export type ExtendedCheckResult = {
+  [T in CheckType]: ExtendedResult<CheckResultFor<T>, T>;
+}[CheckType];
 
 export interface NodeEntry {
   asn: string;
