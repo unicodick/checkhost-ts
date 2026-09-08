@@ -3,6 +3,7 @@ import {
   getResult,
   getNodeIPs,
   getResultExtended,
+  waitForResult,
   type CheckResult,
   type CheckResponse,
   type ExtendedCheckResult,
@@ -21,6 +22,7 @@ const customExtended: ExtendedResult<{ raw: true }> = {
   results: { raw: true },
 };
 const httpResult: Promise<HttpResult> = getResult("request-id", { type: "http" });
+const waitedHttpResult: Promise<HttpResult> = waitForResult("request-id", { type: "http" });
 const udp: UdpResult = { node: [{ address: "192.0.2.1", timeout: 1 }] };
 
 function readExtendedResult(result: ExtendedCheckResult): CheckResult {
@@ -32,4 +34,4 @@ function readExtendedResult(result: ExtendedCheckResult): CheckResult {
   return result.results;
 }
 
-void [check, ips, result, customExtended, httpResult, udp, readExtendedResult];
+void [check, ips, result, customExtended, httpResult, waitedHttpResult, udp, readExtendedResult];

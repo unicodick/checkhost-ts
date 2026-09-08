@@ -9,10 +9,10 @@ npm install checkhost-ts
 ---
 
 ```ts
-import { checkHttp, getResult } from "checkhost-ts";
+import { checkHttp, waitForResult } from "checkhost-ts";
 
 const check = await checkHttp("check-host.net", { maxNodes: 1 });
-const result = await getResult(check.request_id);
+const result = await waitForResult(check.request_id, { type: "http" });
 
 console.log(check.request_id);
 console.log(result);
@@ -62,10 +62,32 @@ type CheckOptions = {
 
 ```ts
 getResult(requestId: string, options?: RequestOptions): Promise<CheckResult>
-getResultExtended(requestId: string, options?: RequestOptions): Promise<ExtendedResult<CheckResult>>
+getResult<T extends CheckType>(requestId: string, options: ResultOptions<T>): Promise<CheckResultFor<T>>
+getResultExtended(requestId: string, options?: RequestOptions): Promise<ExtendedCheckResult>
+waitForResult(requestId: string, options?: WaitForResultOptions): Promise<CheckResult>
+waitForResult<T extends CheckType>(requestId: string, options: WaitForResultOptions<T> & { type: T }): Promise<CheckResultFor<T>>
 ```
 
 `requestId` is URL-encoded by the library before request execution.
+
+Pass `type` to get a specific result type and validate that shape at runtime:
+
+```ts
+const result = await getResult(check.request_id, { type: "http" });
+// result is HttpResult
+```
+
+Checks run asynchronously. `getResult` performs one request and may return `null` for nodes that are still working. `waitForResult` polls until every node is complete:
+
+```ts
+const result = await waitForResult(check.request_id, {
+  type: "http",
+  intervalMs: 1_000,       // default: 1 second
+  timeoutMs: 30_000,       // total polling deadline
+  requestTimeoutMs: 5_000, // timeout for each HTTP request
+  signal,
+});
+```
 
 ### Node methods
 
@@ -82,12 +104,18 @@ Exported core types:
 - `CheckOptions`
 - `RequestOptions`
 - `CheckResult`
+- `CheckResultMap`
+- `CheckResultFor<T>`
+- `CheckType`
 - `PingResult`
 - `HttpResult`
 - `TcpResult`
 - `DnsResult`
 - `UdpResult`
 - `ExtendedResult<T>`
+- `ExtendedCheckResult`
+- `ResultOptions<T>`
+- `WaitForResultOptions<T>`
 - `NodeEntry`
 - `NodeInfo`
 - `CheckHostError`

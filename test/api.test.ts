@@ -8,6 +8,7 @@ import {
   getNodeIPs,
   getResult,
   getResultExtended,
+  waitForResult,
 } from "../index.js";
 
 const originalFetch = globalThis.fetch;
@@ -273,5 +274,45 @@ describe("results", () => {
     const result = await getResultExtended("request-id");
 
     expect(result.port).toBe("53");
+  });
+
+  test("polls until all node results are complete", async () => {
+    let requestCount = 0;
+    globalThis.fetch = async () => {
+      requestCount += 1;
+      return Response.json(
+        requestCount === 1
+          ? { node: null }
+          : { node: [[1, 0.1, "OK", "200", "192.0.2.1"]] },
+      );
+    };
+
+    const result = await waitForResult("request-id", {
+      type: "http",
+      intervalMs: 1,
+      timeoutMs: 100,
+    });
+
+    expect(result).toEqual({ node: [[1, 0.1, "OK", "200", "192.0.2.1"]] });
+    expect(requestCount).toBe(2);
+  });
+
+  test("times out while results remain pending", async () => {
+    mockJson({ node: null });
+
+    try {
+      await waitForResult("request-id", { intervalMs: 1, timeoutMs: 10 });
+      throw new Error("Expected waitForResult to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CheckHostError);
+      expect((error as CheckHostError).kind).toBe("timeout");
+      expect((error as CheckHostError).message).toContain("Timed out waiting for check result");
+    }
+  });
+
+  test("rejects invalid polling options", async () => {
+    await expect(waitForResult("request-id", { intervalMs: 0 })).rejects.toThrow(
+      "intervalMs must be a positive integer",
+    );
   });
 });
