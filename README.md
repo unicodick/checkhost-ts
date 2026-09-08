@@ -109,7 +109,11 @@ try {
   await checkHttp("check-host.net");
 } catch (error) {
   if (error instanceof CheckHostError) {
-    console.error(error.statusCode, error.message);
+    console.error(error.kind, error.statusCode, error.message);
+    console.error(error.url, error.responseBody, error.cause);
   }
 }
 ```
+
+`kind` distinguishes `validation`, `network`, `timeout`, `aborted`, `http`, and malformed `response` errors.
+HTTP failures may include a parsed `responseBody`; transport failures preserve their original `cause`.

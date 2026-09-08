@@ -69,7 +69,27 @@ describe("apiFetch", () => {
       throw new Error("Expected apiFetch to reject");
     } catch (error) {
       expect(error).toBeInstanceOf(CheckHostError);
-      expect((error as CheckHostError).statusCode).toBe(429);
+      const checkHostError = error as CheckHostError;
+      expect(checkHostError.statusCode).toBe(429);
+      expect(checkHostError.kind).toBe("http");
+      expect(checkHostError.responseBody).toEqual({ error: "rate limited" });
+      expect(checkHostError.url).toBe("https://check-host.net/test");
+    }
+  });
+
+  test("preserves the cause of network errors", async () => {
+    const cause = new Error("socket closed");
+    globalThis.fetch = async () => {
+      throw cause;
+    };
+
+    try {
+      await apiFetch("/test");
+      throw new Error("Expected apiFetch to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CheckHostError);
+      expect((error as CheckHostError).kind).toBe("network");
+      expect((error as CheckHostError).cause).toBe(cause);
     }
   });
 
@@ -88,7 +108,14 @@ describe("apiFetch", () => {
 
     controller.abort(new Error("cancelled by caller"));
 
-    await expect(request).rejects.toThrow("cancelled by caller");
+    try {
+      await request;
+      throw new Error("Expected apiFetch to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CheckHostError);
+      expect((error as CheckHostError).message).toContain("cancelled by caller");
+      expect((error as CheckHostError).kind).toBe("aborted");
+    }
   });
 
   test("rejects invalid timeout values", async () => {

@@ -7,6 +7,30 @@ export type RequestOptions = {
   timeoutMs?: number;
 };
 
+async function readErrorResponse(response: Response): Promise<unknown> {
+  let text: string;
+
+  try {
+    text = await response.text();
+  } catch {
+    return undefined;
+  }
+
+  if (text.length === 0) {
+    return undefined;
+  }
+
+  if (response.headers.get("content-type")?.toLowerCase().includes("json")) {
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      // upstream JSON error is malformed
+    }
+  }
+
+  return text;
+}
+
 function createRequestSignal(options?: RequestOptions): {
   signal: AbortSignal | undefined;
   cleanup: () => void;
@@ -20,7 +44,9 @@ function createRequestSignal(options?: RequestOptions): {
     options.timeoutMs <= 0 ||
     options.timeoutMs > 2_147_483_647
   ) {
-    throw new CheckHostError("timeoutMs must be an integer between 1 and 2147483647", 0);
+    throw new CheckHostError("timeoutMs must be an integer between 1 and 2147483647", 0, {
+      kind: "validation",
+    });
   }
 
   const controller = new AbortController();
@@ -83,13 +109,28 @@ export async function apiFetch(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown network error";
-      throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
+      const kind = options?.signal?.aborted
+        ? "aborted"
+        : signal?.aborted
+          ? "timeout"
+          : "network";
+      throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0, {
+        kind,
+        cause: error,
+        url: url.toString(),
+      });
     }
 
     if (!response.ok) {
+      const responseBody = await readErrorResponse(response);
       throw new CheckHostError(
         `Request failed for ${url.toString()} with status ${response.status}`,
         response.status,
+        {
+          kind: "http",
+          responseBody,
+          url: url.toString(),
+        },
       );
     }
 
@@ -98,13 +139,23 @@ export async function apiFetch(
     } catch (error) {
       if (signal?.aborted) {
         const message = error instanceof Error ? error.message : "Request aborted";
-        throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0);
+        const kind = options?.signal?.aborted ? "aborted" : "timeout";
+        throw new CheckHostError(`Network request failed for ${url.toString()}: ${message}`, 0, {
+          kind,
+          cause: error,
+          url: url.toString(),
+        });
       }
 
       const contentType = response.headers.get("content-type") ?? "unknown";
       throw new CheckHostError(
         `Expected JSON response but received content-type ${contentType}`,
         response.status,
+        {
+          kind: "response",
+          cause: error,
+          url: url.toString(),
+        },
       );
     }
   } finally {

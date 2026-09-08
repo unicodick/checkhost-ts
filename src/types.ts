@@ -73,13 +73,35 @@ export interface NodeEntry {
   location: [countryCode: string, countryName: string, city: string];
 }
 
+export type CheckHostErrorKind =
+  | "unknown"
+  | "validation"
+  | "network"
+  | "timeout"
+  | "aborted"
+  | "http"
+  | "response";
+
+export interface CheckHostErrorDetails {
+  kind?: CheckHostErrorKind;
+  cause?: unknown;
+  responseBody?: unknown;
+  url?: string;
+}
+
 export class CheckHostError extends Error {
   statusCode: number;
+  kind: CheckHostErrorKind;
+  responseBody?: unknown;
+  url?: string;
 
-  constructor(message: string, statusCode: number) {
-    super(message);
+  constructor(message: string, statusCode: number, details: CheckHostErrorDetails = {}) {
+    super(message, details.cause === undefined ? undefined : { cause: details.cause });
     this.name = "CheckHostError";
     this.statusCode = statusCode;
+    this.kind = details.kind ?? "unknown";
+    this.responseBody = details.responseBody;
+    this.url = details.url;
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
