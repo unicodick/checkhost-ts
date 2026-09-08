@@ -15,19 +15,34 @@ function buildCheckParams(
 ): Record<string, string | string[]> {
   const params: Record<string, string | string[]> = { host: assertHost(host) };
 
-  if (typeof options?.maxNodes === "number") {
-    if (!Number.isInteger(options.maxNodes) || options.maxNodes <= 0) {
-      throw new CheckHostError("maxNodes must be a positive integer", 0);
+  if (options?.maxNodes !== undefined) {
+    if (
+      typeof options.maxNodes !== "number" ||
+      !Number.isInteger(options.maxNodes) ||
+      options.maxNodes <= 0
+    ) {
+      throw new CheckHostError("maxNodes must be a positive integer", 0, { kind: "validation" });
     }
     params.max_nodes = String(options.maxNodes);
   }
 
-  if (options?.nodes && options.nodes.length > 0) {
-    const normalizedNodes = options.nodes.map((node) => node.trim());
-    if (normalizedNodes.some((node) => node.length === 0)) {
-      throw new CheckHostError("nodes must not contain empty strings", 0);
+  if (options?.nodes !== undefined) {
+    if (!Array.isArray(options.nodes)) {
+      throw new CheckHostError("nodes must be an array of strings", 0, { kind: "validation" });
     }
-    params.node = normalizedNodes;
+
+    const normalizedNodes = options.nodes.map((node) => {
+      if (typeof node !== "string") {
+        throw new CheckHostError("nodes must contain only strings", 0, { kind: "validation" });
+      }
+      return node.trim();
+    });
+    if (normalizedNodes.some((node) => node.length === 0)) {
+      throw new CheckHostError("nodes must not contain empty strings", 0, { kind: "validation" });
+    }
+    if (normalizedNodes.length > 0) {
+      params.node = normalizedNodes;
+    }
   }
 
   return params;

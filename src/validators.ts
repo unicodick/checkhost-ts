@@ -15,6 +15,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function invalidInput(message: string): CheckHostError {
+  return new CheckHostError(message, 0, { kind: "validation" });
+}
+
 function isNodeInfo(value: unknown): value is [string, string, string, string, string] {
   return (
     Array.isArray(value) &&
@@ -127,18 +131,26 @@ function isCheckNodeResult(value: unknown): boolean {
   );
 }
 
-export function assertHost(host: string): string {
+export function assertHost(host: unknown): string {
+  if (typeof host !== "string") {
+    throw invalidInput("host must be a string");
+  }
+
   const trimmedHost = host.trim();
   if (trimmedHost.length === 0) {
-    throw new CheckHostError("host must be a non-empty string", 0);
+    throw invalidInput("host must be a non-empty string");
   }
   return trimmedHost;
 }
 
-export function assertRequestId(requestId: string): string {
+export function assertRequestId(requestId: unknown): string {
+  if (typeof requestId !== "string") {
+    throw invalidInput("requestId must be a string");
+  }
+
   const trimmedRequestId = requestId.trim();
   if (trimmedRequestId.length === 0) {
-    throw new CheckHostError("requestId must be a non-empty string", 0);
+    throw invalidInput("requestId must be a non-empty string");
   }
   return trimmedRequestId;
 }

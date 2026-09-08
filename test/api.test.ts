@@ -157,6 +157,24 @@ describe("checks", () => {
       "nodes must not contain empty strings",
     );
   });
+
+  test("wraps invalid JavaScript inputs in CheckHostError", async () => {
+    for (const createRequest of [
+      () => checkHttp(null as never),
+      () => checkHttp("example.com", { maxNodes: "two" } as never),
+      () => checkHttp("example.com", { nodes: "node" } as never),
+      () => checkHttp("example.com", { nodes: [null] } as never),
+      () => getResult(42 as never),
+    ]) {
+      try {
+        await createRequest();
+        throw new Error("Expected request to reject");
+      } catch (error) {
+        expect(error).toBeInstanceOf(CheckHostError);
+        expect((error as CheckHostError).kind).toBe("validation");
+      }
+    }
+  });
 });
 
 describe("nodes", () => {
